@@ -17,7 +17,7 @@ import scala.scalajs.js
 import scala.scalajs.js.typedarray._
 import scala.scalajs.js.typedarray.TypedArrayBufferOps._
 import java.nio.ByteBuffer
-import org.scalajs.linker.NodeFS.MkDirOpt
+import org.scalajs.linker.NodeFS.{MkDirOpt, RmOpt}
 import org.scalajs.linker.interface.OutputDirectory
 import org.scalajs.linker.interface.unstable.OutputDirectoryImpl
 
@@ -60,7 +60,7 @@ object NodeOutputDirectory {
       cbFuture[js.Array[String]](NodeFS.readdir(directory, _)).map(_.toList)
 
     def delete(name: String)(implicit ec: ExecutionContext): Future[Unit] =
-      cbFuture[Unit](NodeFS.unlink(getPath(name), _))
+      cbFuture[Unit](NodeFS.rm(getPath(name), RmOpt, _))
 
     private def getPath(name: String) = NodeFS.join(directory, name)
   }
