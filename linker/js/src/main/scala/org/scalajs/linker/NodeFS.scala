@@ -42,6 +42,14 @@ private[linker] object NodeFS {
     val withFileTypes: Boolean = true
   }
 
+  object MkDirOpt extends js.Object {
+    val recursive: Boolean = true
+  }
+
+  object RmOpt extends js.Object {
+    val recursive: Boolean = true
+  }
+
   trait Stats extends js.Object {
     val mtime: js.UndefOr[js.Date]
     def isDirectory(): Boolean
@@ -88,7 +96,12 @@ private[linker] object NodeFS {
 
   @JSImport("fs")
   @js.native
-  def unlink(path: String, cb: CB[Unit]): Unit = js.native
+  def rm(path: String, opt: RmOpt.type, cb: CB[Unit]): Unit = js.native
+
+  // todo check which versions of node need to be supported; I believe this only works with node >= 10
+  @JSImport("fs")
+  @js.native
+  def mkdir(path: String, opts: MkDirOpt.type, cb: CB[Unit]): Unit = js.native
 
   @JSImport("path")
   @js.native

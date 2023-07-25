@@ -61,18 +61,38 @@ object PathOutputDirectory {
     def readFull(name: String)(implicit ec: ExecutionContext): Future[ByteBuffer] =
       withChannel(getPath(name), StandardOpenOption.READ)(readFromChannel(_))
 
-    def listFiles()(implicit ec: ExecutionContext): Future[List[String]] = Future {
+    override def listFiles()(implicit ec: ExecutionContext): Future[List[String]] =
+      listFilesImpl(directory, e => directory.relativize(e).toString)
+
+    private def listFilesImpl[B](
+        d: Path,
+        transform: Path => B
+    )(implicit ec: ExecutionContext): Future[List[B]] = Future {
       blocking {
-        val builder = List.newBuilder[String]
-        Files.list(directory).forEachOrdered { entry =>
-          builder += directory.relativize(entry).toString()
+        val builder = List.newBuilder[B]
+        Files.list(d).forEachOrdered { entry =>
+          builder += transform(entry)
         }
         builder.result()
       }
     }
 
-    def delete(name: String)(implicit ec: ExecutionContext): Future[Unit] =
-      Future(blocking(Files.delete(getPath(name))))
+    def delete(name: String)(implicit ec: ExecutionContext): Future[Unit] = {
+      def deleteFile(path: Path): Future[Unit] =
+        Future(blocking(Files.delete(path)))
+      def deleteRecursively(path: Path):Future[Unit] = if (Files.isDirectory(path)) {
+        for {
+          files <- listFilesImpl(path, identity)
+          _ <- Future.sequence(files.map(deleteRecursively))
+          _ <- deleteFile(path)
+        }
+          yield ()
+      } else {
+        deleteFile(path)
+      }
+
+      deleteRecursively(getPath(name))
+    }
 
     private def getPath(name: String) = directory.resolve(name)
 
@@ -83,7 +103,12 @@ object PathOutputDirectory {
 
       val tmpFileFuture = Future {
         blocking {
-          val tmpFile = Files.createTempFile(directory, ".tmp-" + name, ".tmp")
+          val fullPath = directory.resolve(Paths.get(name))
+          val resolvedDirectory = fullPath.getParent
+          val resolvedName = fullPath.getFileName.toString
+          Files.createDirectories(resolvedDirectory)
+
+          val tmpFile = Files.createTempFile(resolvedDirectory, ".tmp-" + resolvedName, ".tmp")
 
           /* Set file permissions for temporary file as in Linux it is created
            * with permissions 0600 which deviates from the standard 0644 used
