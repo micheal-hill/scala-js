@@ -83,7 +83,12 @@ object PathOutputDirectory {
 
       val tmpFileFuture = Future {
         blocking {
-          val tmpFile = Files.createTempFile(directory, ".tmp-" + name, ".tmp")
+          val fullPath = directory.resolve(Paths.get(name))
+          val resolvedDirectory = fullPath.getParent
+          val resolvedName = fullPath.getFileName.toString
+          Files.createDirectories(resolvedDirectory)
+
+          val tmpFile = Files.createTempFile(resolvedDirectory, ".tmp-" + resolvedName, ".tmp")
 
           /* Set file permissions for temporary file as in Linux it is created
            * with permissions 0600 which deviates from the standard 0644 used
